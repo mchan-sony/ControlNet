@@ -1,5 +1,6 @@
 import random
 from functools import partial
+from datetime import timedelta
 
 import cv2
 import einops
@@ -11,6 +12,7 @@ from torch.utils.data import DataLoader, Subset
 from torchvision.utils import save_image, make_grid
 import os
 import shutil
+from time import time
 
 import config
 from annotator.canny import CannyDetector
@@ -23,9 +25,8 @@ import argparse
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--num_samples", type=int)
-    parser.add_argument("--batch_size", type=int)
-    parser.add_argument("--image_grid", default=False)
+    parser.add_argument("--num_samples", type=int, default=2048)
+    parser.add_argument("--batch_size", type=int, default=16)
     args = parser.parse_args()
     print(args)
 
@@ -52,6 +53,7 @@ if __name__ == "__main__":
     shutil.rmtree(os.path.join(OUT_DIR, "output/fakeB"), ignore_errors=True)
     os.makedirs(os.path.join(OUT_DIR, "output/fakeB"))
 
+    start_time = time()
     for i, batch in enumerate(loader):
         batch["txt"] = np.repeat(["street at night"], len(batch["txt"])).tolist()
         log = model.log_images(batch, N=len(batch["txt"]), ddim_steps=20, ddim_eta=0)
@@ -59,29 +61,34 @@ if __name__ == "__main__":
         canny_imgs = log["control"].detach().cpu()
         translated_imgs = renorm(log["samples_cfg_scale_9.00"]).detach().cpu()
 
-        if args.image_grid:
+        # if args.image_grid:
+        #     save_image(
+        #         input_imgs,
+        #         os.path.join(OUT_DIR, "output/realA/%04d.png" % (i + 1)),
+        #     )
+        #     save_image(
+        #         translated_imgs,
+        #         os.path.join(OUT_DIR, "output/fakeB/%04d.png" % (i + 1)),
+        #     )
+        # else:
+        for j in range(len(input_imgs)):
             save_image(
-                input_imgs,
-                os.path.join(OUT_DIR, "output/realA/%04d.png" % (i + 1)),
+                input_imgs[j],
+                os.path.join(
+                    OUT_DIR, "output/realA/%04d.png" % (args.batch_size * i + j + 1)
+                ),
             )
             save_image(
-                translated_imgs,
-                os.path.join(OUT_DIR, "output/fakeB/%04d.png" % (i + 1)),
+                translated_imgs[j],
+                os.path.join(
+                    OUT_DIR, "output/fakeB/%04d.png" % (args.batch_size * i + j + 1)
+                ),
             )
-        else:
-            for j in range(len(input_imgs)):
-                save_image(
-                    input_imgs[j],
-                    os.path.join(
-                        OUT_DIR, "output/realA/%04d.png" % (args.batch_size * i + j + 1)
-                    ),
-                )
-                save_image(
-                    translated_imgs[j],
-                    os.path.join(
-                        OUT_DIR, "output/fakeB/%04d.png" % (args.batch_size * i + j + 1)
-                    ),
-                )
+
+    elapsed_time = time() - start_time
+    max_vram = torch.cuda.max_memory_allocated(device="cuda") / (1024**3)
+    print("Max VRAM usage:", max_vram, "gb")
+    print("Runtime:", str(timedelta(seconds=elapsed_time)))
 
     exit()
 
