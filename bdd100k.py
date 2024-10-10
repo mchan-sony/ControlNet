@@ -13,10 +13,12 @@ class BDD100K(Dataset):
 
         self.img_dir = f"/workspace/BDD_processed/{mode}/bdd100k/images/100k/{mode}"
         self.canny_dir = f"/workspace/BDD_processed/{mode}/bdd100k/canny/100k/{mode}"
+        self.depth_dir = f"/workspace/BDD_processed/{mode}/bdd100k/depth"
         f = open(f"/workspace/BDD_processed/labels/det_20/det_{mode}.json")
         data = json.load(f)
         self.img_fnames = []
         self.canny_fnames = []
+        self.depth_fnames = []
         self.time_of_day = []
         for image in data:
             if mode == "val" and image["attributes"]["timeofday"] != "daytime":
@@ -24,6 +26,7 @@ class BDD100K(Dataset):
 
             self.img_fnames.append(os.path.join(self.img_dir, image["name"]))
             self.canny_fnames.append(os.path.join(self.canny_dir, image["name"]))
+            self.depth_fnames.append(os.path.join(self.depth_dir, image["name"]).replace(".jpg", "_depth.png"))
             self.time_of_day.append(image["attributes"]["timeofday"])
 
         print(f"Loaded {self.__len__()} data pairs.")
@@ -34,19 +37,22 @@ class BDD100K(Dataset):
     def __getitem__(self, idx):
         img_fname = self.img_fnames[idx]
         canny_fname = self.canny_fnames[idx]
+        depth_fname = self.depth_fnames[idx]
         time_of_day = self.time_of_day[idx]
 
         img = cv2.cvtColor(cv2.imread(img_fname), cv2.COLOR_BGR2RGB)
         canny = cv2.imread(canny_fname)
+        depth = cv2.imread(depth_fname)
         img = cv2.resize(img, (512, 512))
         canny = cv2.resize(canny, (512, 512))
+        depth = cv2.resize(depth, (512, 512))
 
         # Normalize image between [-1, 1]
         img = (img.astype(np.float32) / 127.5) - 1.0
 
         prompt = f"street at {time_of_day}"
 
-        return dict(jpg=img, txt=prompt, hint=canny)
+        return dict(jpg=img, txt=prompt, hint=depth)
 
 
 if __name__ == "__main__":

@@ -31,7 +31,8 @@ if __name__ == "__main__":
     print(args)
 
     apply_canny = CannyDetector()
-    ckpt = glob("experiments/day_and_night/*.ckpt")[0]
+    # ckpt = glob("experiments/day_and_night/*.ckpt")[0]
+    ckpt = "experiments/day_and_night/epoch=8-step=139999.ckpt"
     input_img = "../BDD_processed/train/bdd100k/images/100k/train/0000f77c-6257be58.jpg"
     prompt = "street at daytime"
 
